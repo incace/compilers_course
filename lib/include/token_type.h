@@ -1,38 +1,35 @@
 #pragma once
 
 enum class TokenType {
-  NUMBER,
+  // Keywords
   ID,
-  STRING,
+  NUMBER,
   VAR,
-
   PRINT,
   IF,
   ELSE,
-  WHILE, // while
-
+  WHILE,
   // Operators
   PLUS,
   MINUS,
   STAR,
-  SLASH, // + - * /
+  SLASH,
   EQ,
   EQEQ,
   EXCL,
-  NEQ, // = == ! !=
+  NEQ,
   LT,
   GT,
   LTEQ,
-  GTEQ, // < > <= >=
+  GTEQ,
   AND,
-  OR, // && ||
-
-  // Grouping & Punctuation
+  OR,
+  // Delimiters
   LPAREN,
-  RPAREN, // ( )
+  RPAREN,
   LBRACE,
-  RBRACE,    // { }
-  SEMICOLON, // ;
-
-  EOfF // Конец файла
+  RBRACE,
+  SEMICOLON,
+  // Special
+  EOfF
 };

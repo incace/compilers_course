@@ -1,21 +1,35 @@
 #include "lexer.h"
-#include "token.h"
+#include "parser.h"
 #include <iostream>
 #include <string>
-#include <vector>
 
 int main() {
-  std::string codeExample = "var x = 123; print x + 5;";
+  // Сложный пример кода, покрывающий новые возможности
+  std::string code = "var x = 10; "
+                     "if (x > 5) { "
+                     "  print x + 1; "
+                     "} else { "
+                     "  x = 0; "
+                     "} "
+                     "while (x < 15) { "
+                     "  x = x + 1; "
+                     "  print x; "
+                     "}";
 
   try {
-    Lexer lexer(codeExample);
-    std::vector<Token> tokens = lexer.tokenize();
-    std::cout << "Tokens:" << std::endl;
-    for (const auto &token : tokens) {
-      token.print();
+    Lexer lexer(code);
+    auto tokens = lexer.tokenize();
+
+    Parser parser(tokens);
+    auto ast = parser.parse();
+
+    std::cout << "AST Structure:\n";
+    for (const auto &stmt : ast) {
+      stmt->print(0);
     }
+
   } catch (const std::exception &e) {
-    std::cerr << "Lexer Error: " << e.what() << std::endl;
+    std::cerr << "Error: " << e.what() << std::endl;
     return 1;
   }
 
