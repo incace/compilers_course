@@ -7,6 +7,8 @@ enum class TokenType {
   TRUE,
   FALSE,
   VAR,
+  FUN,
+  RETURN,
   PRINT,
   IF,
   ELSE,
@@ -30,5 +32,6 @@ enum class TokenType {
   LBRACE,
   RBRACE,
   SEMICOLON,
+  COMMA,
   EOfF
 };

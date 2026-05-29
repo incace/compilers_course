@@ -2,6 +2,7 @@
 #include "ast.h"
 #include "token.h"
 #include <initializer_list>
+#include <memory>
 #include <vector>
 
 class Parser {
@@ -13,6 +14,7 @@ private:
   std::vector<Token> tokens;
   size_t position = 0;
 
+  // Методы для обработки Statement (инструкций)
   std::unique_ptr<Stmt> declaration();
   std::unique_ptr<Stmt> varDeclaration();
   std::unique_ptr<Stmt> statement();
@@ -20,8 +22,10 @@ private:
   std::unique_ptr<Stmt> whileStatement();
   std::unique_ptr<Stmt> printStatement();
   std::unique_ptr<Stmt> expressionStatement();
+  std::unique_ptr<Stmt> returnStatement(); // Новое
   std::vector<std::unique_ptr<Stmt>> block();
 
+  // Методы для обработки Expression (выражений)
   std::unique_ptr<Expr> expression();
   std::unique_ptr<Expr> assignment();
   std::unique_ptr<Expr> logicalOr();
@@ -31,8 +35,10 @@ private:
   std::unique_ptr<Expr> term();
   std::unique_ptr<Expr> factor();
   std::unique_ptr<Expr> unary();
+  std::unique_ptr<Expr> parseCall(); // Новое (обязательно!)
   std::unique_ptr<Expr> primary();
 
+  // Вспомогательные методы
   bool match(std::initializer_list<TokenType> types);
   bool check(TokenType type);
   Token advance();

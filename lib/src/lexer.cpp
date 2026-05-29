@@ -5,9 +5,10 @@
 using namespace std;
 
 const unordered_map<string, TokenType> Lexer::keywords = {
-    {"var", TokenType::VAR},     {"print", TokenType::PRINT},
-    {"if", TokenType::IF},       {"else", TokenType::ELSE},
-    {"while", TokenType::WHILE}, {"true", TokenType::TRUE},
+    {"var", TokenType::VAR},       {"print", TokenType::PRINT},
+    {"if", TokenType::IF},         {"else", TokenType::ELSE},
+    {"while", TokenType::WHILE},   {"fun", TokenType::FUN},
+    {"return", TokenType::RETURN}, {"true", TokenType::TRUE},
     {"false", TokenType::FALSE}};
 
 Lexer::Lexer(string input)
@@ -159,6 +160,8 @@ void Lexer::tokenizeOperator(vector<Token> &result) {
     add(TokenType::RBRACE, "}", 1);
   else if (cur == ';')
     add(TokenType::SEMICOLON, ";", 1);
+  else if (cur == ',')
+    add(TokenType::COMMA, ",", 1);
   else
     throw runtime_error("[Lexer Error] Line " + to_string(l) + ", Col " +
                         to_string(c) +

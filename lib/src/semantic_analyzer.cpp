@@ -2,24 +2,12 @@
 
 using namespace std;
 
-string SemanticAnalyzer::typeToString(DataType t) {
-  switch (t) {
-  case DataType::NUMBER:
-    return "number";
-  case DataType::STRING:
-    return "string";
-  case DataType::BOOLEAN:
-    return "boolean";
-  default:
-    return "unknown";
-  }
-}
-
 pair<vector<string>, vector<string>>
 SemanticAnalyzer::analyze(const vector<unique_ptr<Stmt>> &statements) {
   scopes.clear();
   errors.clear();
   warnings.clear();
+  functionDepth = 0;
   beginScope();
   for (const auto &stmt : statements)
     analyzeStatement(stmt.get());
@@ -28,11 +16,35 @@ SemanticAnalyzer::analyze(const vector<unique_ptr<Stmt>> &statements) {
 }
 
 void SemanticAnalyzer::analyzeStatement(Stmt *statement) {
-  if (auto *s = dynamic_cast<VarStmt *>(statement)) {
+  if (auto *s = dynamic_cast<FunctionStmt *>(statement)) {
+    auto *info = declareVariable(s->name);
+    if (info) {
+      info->type = DataType::FUNCTION;
+      info->arity = s->parameters.size();
+      info->isInitialized = true;
+    }
+    beginScope();
+    functionDepth++;
+    for (const auto &param : s->parameters) {
+      auto *pInfo = declareVariable(param);
+      if (pInfo)
+        pInfo->isInitialized = true;
+    }
+    for (const auto &stmt : s->body->statements)
+      analyzeStatement(stmt.get());
+    functionDepth--;
+    endScope();
+  } else if (auto *s = dynamic_cast<ReturnStmt *>(statement)) {
+    if (functionDepth == 0)
+      errors.push_back(
+          "semantic error: return is allowed only inside a function");
+    if (s->value)
+      analyzeExpression(s->value.get());
+  } else if (auto *s = dynamic_cast<VarStmt *>(statement)) {
     auto *info = declareVariable(s->name);
     if (s->initializer) {
       DataType t = analyzeExpression(s->initializer.get());
-      if (info && t != DataType::UNKNOWN) {
+      if (info) {
         info->type = t;
         info->isInitialized = true;
       }
@@ -70,75 +82,76 @@ DataType SemanticAnalyzer::analyzeExpression(Expr *expression) {
   if (dynamic_cast<BooleanExpr *>(expression))
     return DataType::BOOLEAN;
 
+  if (auto *e = dynamic_cast<CallExpr *>(expression)) {
+    auto *info = resolveVariable(e->callee);
+    if (!info || info->type != DataType::FUNCTION) {
+      errors.push_back("semantic error: function " + e->callee +
+                       " is not declared");
+    } else if (info->arity != (int)e->arguments.size()) {
+      errors.push_back("semantic error: function " + e->callee + " expects " +
+                       to_string(info->arity) + " arguments");
+    }
+    for (auto &arg : e->arguments)
+      analyzeExpression(arg.get());
+    return DataType::UNKNOWN;
+  }
+
   if (auto *e = dynamic_cast<VariableExpr *>(expression)) {
     auto *info = resolveVariable(e->name);
     if (!info) {
       errors.push_back("semantic error: " + e->name + " is not declared");
       return DataType::UNKNOWN;
     }
+    if (info->type == DataType::FUNCTION) {
+      errors.push_back("semantic error: function " + e->name +
+                       " cannot be used as a value");
+      return DataType::UNKNOWN;
+    }
     info->isUsed = true;
-    if (!info->isInitialized) {
+    if (!info->isInitialized)
       errors.push_back("semantic error: " + e->name + " is not initialized");
-      return DataType::UNKNOWN;
-    }
-    return info->type;
-  }
-
-  if (auto *e = dynamic_cast<AssignExpr *>(expression)) {
-    DataType valType = analyzeExpression(e->value.get());
-    auto *info = resolveVariable(e->name);
-    if (!info) {
-      errors.push_back("semantic error: " + e->name + " is not declared");
-      return DataType::UNKNOWN;
-    }
-
-    if (info->type == DataType::UNKNOWN) {
-      info->type = valType;
-      info->isInitialized = true;
-    } else if (valType != DataType::UNKNOWN && info->type != valType) {
-      errors.push_back("semantic error: cannot assign " +
-                       typeToString(valType) + " to " + e->name + " of type " +
-                       typeToString(info->type));
-    }
     return info->type;
   }
 
   if (auto *e = dynamic_cast<BinaryExpr *>(expression)) {
     DataType l = analyzeExpression(e->left.get());
     DataType r = analyzeExpression(e->right.get());
-    if (l == DataType::UNKNOWN || r == DataType::UNKNOWN)
-      return DataType::UNKNOWN;
 
-    if (e->op == TokenType::PLUS) {
-      if (l == DataType::NUMBER && r == DataType::NUMBER)
-        return DataType::NUMBER;
-      if (l == DataType::STRING && r == DataType::STRING)
-        return DataType::STRING;
-    } else if (e->op == TokenType::MINUS || e->op == TokenType::STAR ||
-               e->op == TokenType::SLASH) {
-      if (l == DataType::NUMBER && r == DataType::NUMBER)
-        return DataType::NUMBER;
-    } else if (e->op == TokenType::LT || e->op == TokenType::LTEQ ||
-               e->op == TokenType::GT || e->op == TokenType::GTEQ) {
-      if (l == DataType::NUMBER && r == DataType::NUMBER)
-        return DataType::BOOLEAN;
-    } else if (e->op == TokenType::EQEQ || e->op == TokenType::NEQ) {
-      if (l == r)
-        return DataType::BOOLEAN;
-    } else if (e->op == TokenType::AND || e->op == TokenType::OR) {
-      if (l == DataType::BOOLEAN && r == DataType::BOOLEAN)
-        return DataType::BOOLEAN;
+    // Операторы сравнения и логики всегда возвращают BOOLEAN
+    if (e->op == TokenType::EQEQ || e->op == TokenType::NEQ ||
+        e->op == TokenType::LT || e->op == TokenType::LTEQ ||
+        e->op == TokenType::GT || e->op == TokenType::GTEQ ||
+        e->op == TokenType::AND || e->op == TokenType::OR) {
+      return DataType::BOOLEAN;
     }
-    errors.push_back("semantic error: operator not supported for these types");
-    return DataType::UNKNOWN;
+
+    // Арифметические операторы
+    if (e->op == TokenType::PLUS) {
+      if (l == DataType::STRING || r == DataType::STRING)
+        return DataType::STRING;
+      return DataType::NUMBER;
+    }
+    return DataType::NUMBER;
   }
+
+  if (auto *e = dynamic_cast<UnaryExpr *>(expression)) {
+    DataType r = analyzeExpression(e->right.get());
+    if (e->op == TokenType::EXCL)
+      return DataType::BOOLEAN;
+    return DataType::NUMBER;
+  }
+
+  if (auto *e = dynamic_cast<AssignExpr *>(expression)) {
+    return analyzeExpression(e->value.get());
+  }
+
   return DataType::UNKNOWN;
 }
 
 void SemanticAnalyzer::beginScope() { scopes.push_back({}); }
 void SemanticAnalyzer::endScope() {
   for (auto const &[name, info] : scopes.back())
-    if (!info.isUsed)
+    if (!info.isUsed && info.type != DataType::FUNCTION)
       warnings.push_back("warning: " + name + " is declared but never used");
   scopes.pop_back();
 }

@@ -5,13 +5,14 @@
 #include <unordered_map>
 #include <vector>
 
-enum class DataType { UNKNOWN, NUMBER, STRING, BOOLEAN };
+enum class DataType { UNKNOWN, NUMBER, STRING, BOOLEAN, FUNCTION };
 
 struct VariableInfo {
   bool isDefined = true;
   bool isInitialized = false;
   bool isUsed = false;
   DataType type = DataType::UNKNOWN;
+  int arity = 0;
 };
 
 class SemanticAnalyzer {
@@ -23,6 +24,7 @@ private:
   std::vector<std::unordered_map<std::string, VariableInfo>> scopes;
   std::vector<std::string> errors;
   std::vector<std::string> warnings;
+  int functionDepth = 0;
 
   void analyzeStatement(Stmt *statement);
   DataType analyzeExpression(Expr *expression);
@@ -31,7 +33,4 @@ private:
   void endScope();
   VariableInfo *declareVariable(const std::string &name);
   VariableInfo *resolveVariable(const std::string &name);
-
-  std::string typeToString(DataType t);
-  void reportBinaryError(TokenType op, DataType l, DataType r);
 };
