@@ -148,3 +148,22 @@ public:
     body->print(lvl + 1);
   }
 };
+
+class StringExpr : public Expr {
+public:
+  std::string value;
+  explicit StringExpr(std::string val) : value(std::move(val)) {}
+  void print(int lvl) override {
+    std::cout << std::string(lvl * 2, ' ') << "String: " << value << "\n";
+  }
+};
+
+class BooleanExpr : public Expr {
+public:
+  bool value;
+  explicit BooleanExpr(bool val) : value(val) {}
+  void print(int lvl) override {
+    std::cout << std::string(lvl * 2, ' ')
+              << "Bool: " << (value ? "true" : "false") << "\n";
+  }
+};

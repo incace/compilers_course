@@ -2,6 +2,7 @@
 #include "token.h"
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 class Lexer {
@@ -17,7 +18,9 @@ private:
   char peekNext() const;
   char next();
   void tokenizeNumber(std::vector<Token> &result);
+  void tokenizeString(std::vector<Token> &result);
   void tokenizeWord(std::vector<Token> &result);
   void tokenizeOperator(std::vector<Token> &result);
+  std::pair<int, int> getCoords(size_t pos);
   static const std::unordered_map<std::string, TokenType> keywords;
 };

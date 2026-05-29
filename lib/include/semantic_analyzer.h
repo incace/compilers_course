@@ -1,13 +1,17 @@
 #pragma once
 #include "ast.h"
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+enum class DataType { UNKNOWN, NUMBER, STRING, BOOLEAN };
+
 struct VariableInfo {
-  bool isDefined;
-  bool isInitialized;
-  bool isUsed;
+  bool isDefined = true;
+  bool isInitialized = false;
+  bool isUsed = false;
+  DataType type = DataType::UNKNOWN;
 };
 
 class SemanticAnalyzer {
@@ -21,12 +25,13 @@ private:
   std::vector<std::string> warnings;
 
   void analyzeStatement(Stmt *statement);
-  void analyzeExpression(Expr *expression);
+  DataType analyzeExpression(Expr *expression);
 
   void beginScope();
   void endScope();
-  bool declareVariable(const std::string &name);
+  VariableInfo *declareVariable(const std::string &name);
   VariableInfo *resolveVariable(const std::string &name);
-  void setVariableInitialized(const std::string &name);
-  void setVariableUsed(const std::string &name);
+
+  std::string typeToString(DataType t);
+  void reportBinaryError(TokenType op, DataType l, DataType r);
 };

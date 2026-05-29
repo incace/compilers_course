@@ -1,15 +1,16 @@
 #pragma once
 
 enum class TokenType {
-  // Keywords
   ID,
+  STRING,
   NUMBER,
+  TRUE,
+  FALSE,
   VAR,
   PRINT,
   IF,
   ELSE,
   WHILE,
-  // Operators
   PLUS,
   MINUS,
   STAR,
@@ -24,12 +25,10 @@ enum class TokenType {
   GTEQ,
   AND,
   OR,
-  // Delimiters
   LPAREN,
   RPAREN,
   LBRACE,
   RBRACE,
   SEMICOLON,
-  // Special
   EOfF
 };

@@ -166,14 +166,23 @@ std::unique_ptr<Expr> Parser::unary() {
 std::unique_ptr<Expr> Parser::primary() {
   if (match({TokenType::NUMBER}))
     return std::make_unique<NumberExpr>(std::stod(previous().getValue()));
+  if (match({TokenType::STRING}))
+    return std::make_unique<StringExpr>(previous().getValue());
+  if (match({TokenType::TRUE}))
+    return std::make_unique<BooleanExpr>(true);
+  if (match({TokenType::FALSE}))
+    return std::make_unique<BooleanExpr>(false);
   if (match({TokenType::ID}))
     return std::make_unique<VariableExpr>(previous().getValue());
   if (match({TokenType::LPAREN})) {
-    std::unique_ptr<Expr> expr = expression();
+    auto expr = expression();
     consume(TokenType::RPAREN, "Expect ')' after expression.");
     return expr;
   }
-  throw std::runtime_error("Expect expression.");
+  Token t = peek();
+  throw std::runtime_error(
+      "[Parser Error] Line " + std::to_string(t.getLine()) + ", Col " +
+      std::to_string(t.getColumn()) + ": Expect expression.");
 }
 
 bool Parser::match(std::initializer_list<TokenType> types) {

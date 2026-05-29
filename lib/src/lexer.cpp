@@ -5,31 +5,37 @@
 using namespace std;
 
 const unordered_map<string, TokenType> Lexer::keywords = {
-    {"var", TokenType::VAR},
-    {"print", TokenType::PRINT},
-    {"if", TokenType::IF},
-    {"else", TokenType::ELSE},
-    {"while", TokenType::WHILE}};
+    {"var", TokenType::VAR},     {"print", TokenType::PRINT},
+    {"if", TokenType::IF},       {"else", TokenType::ELSE},
+    {"while", TokenType::WHILE}, {"true", TokenType::TRUE},
+    {"false", TokenType::FALSE}};
 
 Lexer::Lexer(string input)
     : input(move(input)), length(this->input.length()), position(0) {}
 
 char Lexer::peek() const {
-  if (position >= length)
-    return '\0';
-  return input[position];
+  return (position >= length) ? '\0' : input[position];
 }
-
 char Lexer::peekNext() const {
-  if (position + 1 >= length)
-    return '\0';
-  return input[position + 1];
+  return (position + 1 >= length) ? '\0' : input[position + 1];
 }
 
 char Lexer::next() {
   if (position >= length)
     return '\0';
   return input[position++];
+}
+
+pair<int, int> Lexer::getCoords(size_t pos) {
+  int line = 1, col = 1;
+  for (size_t i = 0; i < pos; ++i) {
+    if (input[i] == '\n') {
+      line++;
+      col = 1;
+    } else
+      col++;
+  }
+  return {line, col};
 }
 
 vector<Token> Lexer::tokenize() {
@@ -44,104 +50,117 @@ vector<Token> Lexer::tokenize() {
       tokenizeNumber(result);
       continue;
     }
+    if (current == '"') {
+      tokenizeString(result);
+      continue;
+    }
     if (isalpha(current) || current == '_') {
       tokenizeWord(result);
       continue;
     }
     tokenizeOperator(result);
   }
-  result.emplace_back(TokenType::EOfF, "", position);
+  auto [l, c] = getCoords(position);
+  result.emplace_back(TokenType::EOfF, "", position, l, c);
   return result;
 }
 
 void Lexer::tokenizeNumber(vector<Token> &result) {
   size_t start = position;
+  auto [l, c] = getCoords(start);
   while (isdigit(peek()))
     next();
+  if (peek() == '.' && isdigit(peekNext())) {
+    throw runtime_error("[Lexer Error] Line " + to_string(l) + ", Col " +
+                        to_string(c) + ": Float literals are not supported.");
+  }
   result.emplace_back(TokenType::NUMBER, input.substr(start, position - start),
-                      start);
+                      start, l, c);
+}
+
+void Lexer::tokenizeString(vector<Token> &result) {
+  size_t start = position;
+  auto [l, c] = getCoords(start);
+  next();
+  string val = "";
+  while (peek() != '"' && peek() != '\0') {
+    if (peek() == '\n')
+      throw runtime_error("[Lexer Error] Line " + to_string(l) +
+                          ": Unterminated string literal.");
+    val += next();
+  }
+  if (peek() != '"')
+    throw runtime_error("[Lexer Error] Line " + to_string(l) +
+                        ": Unterminated string literal.");
+  next();
+  result.emplace_back(TokenType::STRING, val, start, l, c);
 }
 
 void Lexer::tokenizeWord(vector<Token> &result) {
   size_t start = position;
+  auto [l, c] = getCoords(start);
   while (isalnum(peek()) || peek() == '_')
     next();
   string word = input.substr(start, position - start);
   auto it = keywords.find(word);
   if (it != keywords.end())
-    result.emplace_back(it->second, word, start);
+    result.emplace_back(it->second, word, start, l, c);
   else
-    result.emplace_back(TokenType::ID, word, start);
+    result.emplace_back(TokenType::ID, word, start, l, c);
 }
 
 void Lexer::tokenizeOperator(vector<Token> &result) {
-  char current = peek();
-  char n = peekNext();
   size_t start = position;
+  auto [l, c] = getCoords(start);
+  char cur = peek();
+  char n = peekNext();
 
-  if (current == '=' && n == '=') {
-    next();
-    next();
-    result.emplace_back(TokenType::EQEQ, "==", start);
-  } else if (current == '=') {
-    next();
-    result.emplace_back(TokenType::EQ, "=", start);
-  } else if (current == '!' && n == '=') {
-    next();
-    next();
-    result.emplace_back(TokenType::NEQ, "!=", start);
-  } else if (current == '!') {
-    next();
-    result.emplace_back(TokenType::EXCL, "!", start);
-  } else if (current == '<' && n == '=') {
-    next();
-    next();
-    result.emplace_back(TokenType::LTEQ, "<=", start);
-  } else if (current == '<') {
-    next();
-    result.emplace_back(TokenType::LT, "<", start);
-  } else if (current == '>' && n == '=') {
-    next();
-    next();
-    result.emplace_back(TokenType::GTEQ, ">=", start);
-  } else if (current == '>') {
-    next();
-    result.emplace_back(TokenType::GT, ">", start);
-  } else if (current == '&' && n == '&') {
-    next();
-    next();
-    result.emplace_back(TokenType::AND, "&&", start);
-  } else if (current == '|' && n == '|') {
-    next();
-    next();
-    result.emplace_back(TokenType::OR, "||", start);
-  } else if (current == '+') {
-    next();
-    result.emplace_back(TokenType::PLUS, "+", start);
-  } else if (current == '-') {
-    next();
-    result.emplace_back(TokenType::MINUS, "-", start);
-  } else if (current == '*') {
-    next();
-    result.emplace_back(TokenType::STAR, "*", start);
-  } else if (current == '/') {
-    next();
-    result.emplace_back(TokenType::SLASH, "/", start);
-  } else if (current == '(') {
-    next();
-    result.emplace_back(TokenType::LPAREN, "(", start);
-  } else if (current == ')') {
-    next();
-    result.emplace_back(TokenType::RPAREN, ")", start);
-  } else if (current == '{') {
-    next();
-    result.emplace_back(TokenType::LBRACE, "{", start);
-  } else if (current == '}') {
-    next();
-    result.emplace_back(TokenType::RBRACE, "}", start);
-  } else if (current == ';') {
-    next();
-    result.emplace_back(TokenType::SEMICOLON, ";", start);
-  } else
-    throw runtime_error("Unexpected character: " + string(1, current));
+  auto add = [&](TokenType t, string v, int len) {
+    result.emplace_back(t, v, start, l, c);
+    for (int i = 0; i < len; ++i)
+      next();
+  };
+
+  if (cur == '=' && n == '=')
+    add(TokenType::EQEQ, "==", 2);
+  else if (cur == '=')
+    add(TokenType::EQ, "=", 1);
+  else if (cur == '!' && n == '=')
+    add(TokenType::NEQ, "!=", 2);
+  else if (cur == '!')
+    add(TokenType::EXCL, "!", 1);
+  else if (cur == '<' && n == '=')
+    add(TokenType::LTEQ, "<=", 2);
+  else if (cur == '<')
+    add(TokenType::LT, "<", 1);
+  else if (cur == '>' && n == '=')
+    add(TokenType::GTEQ, ">=", 2);
+  else if (cur == '>')
+    add(TokenType::GT, ">", 1);
+  else if (cur == '&' && n == '&')
+    add(TokenType::AND, "&&", 2);
+  else if (cur == '|' && n == '|')
+    add(TokenType::OR, "||", 2);
+  else if (cur == '+')
+    add(TokenType::PLUS, "+", 1);
+  else if (cur == '-')
+    add(TokenType::MINUS, "-", 1);
+  else if (cur == '*')
+    add(TokenType::STAR, "*", 1);
+  else if (cur == '/')
+    add(TokenType::SLASH, "/", 1);
+  else if (cur == '(')
+    add(TokenType::LPAREN, "(", 1);
+  else if (cur == ')')
+    add(TokenType::RPAREN, ")", 1);
+  else if (cur == '{')
+    add(TokenType::LBRACE, "{", 1);
+  else if (cur == '}')
+    add(TokenType::RBRACE, "}", 1);
+  else if (cur == ';')
+    add(TokenType::SEMICOLON, ";", 1);
+  else
+    throw runtime_error("[Lexer Error] Line " + to_string(l) + ", Col " +
+                        to_string(c) +
+                        ": Unexpected character: " + string(1, cur));
 }
