@@ -4,5 +4,6 @@ add_library(lexer_lib
     src/parser.cpp
     src/semantic_analyzer.cpp
     src/interpreter.cpp
+    src/ast_optimizer.cpp
 )
 target_include_directories(lexer_lib PUBLIC include)

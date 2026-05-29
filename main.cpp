@@ -1,42 +1,44 @@
+#include "ast_optimizer.h"
 #include "interpreter.h"
 #include "lexer.h"
 #include "parser.h"
-#include "semantic_analyzer.h"
 #include <iostream>
 
-void runTest(const std::string &name, const std::string &source) {
-  std::cout << "=== Case: " << name << " ===\n";
-  try {
-    Lexer lexer(source);
-    Parser parser(lexer.tokenize());
-    auto ast = parser.parse();
-    SemanticAnalyzer semantic;
-    auto [errors, warnings] = semantic.analyze(ast);
-    if (!errors.empty()) {
-      for (auto &e : errors)
-        std::cout << "  " << e << "\n";
-      return;
-    }
-    Interpreter interpreter;
-    auto output = interpreter.interpret(ast);
-    for (auto &line : output)
-      std::cout << "  " << line << "\n";
-  } catch (const std::exception &e) {
-    std::cout << "  Runtime Error: " << e.what() << "\n";
-  }
+void runOptimizationDemo() {
+  std::string source = "var a = 1; "
+                       "var b = 2; "
+                       "var n = a + b; "            // Должно стать 3
+                       "var x = (10 + 5) * 2 / 3; " // Должно стать 10
+                       "print \"Result n:\"; "
+                       "print n; "
+                       "print \"Result x:\"; "
+                       "print x;";
+
+  std::cout << "--- Original Source ---\n" << source << "\n\n";
+
+  Lexer lexer(source);
+  Parser parser(lexer.tokenize());
+  auto ast = parser.parse();
+
+  std::cout << "--- AST Before Optimization ---\n";
+  for (const auto &stmt : ast)
+    stmt->print(0);
+
+  ASTOptimizer optimizer;
+  ast = optimizer.optimize(std::move(ast));
+
+  std::cout << "\n--- AST After Optimization ---\n";
+  for (const auto &stmt : ast)
+    stmt->print(0);
+
+  std::cout << "\n--- Execution Result ---\n";
+  Interpreter interpreter;
+  auto output = interpreter.interpret(ast);
+  for (const auto &line : output)
+    std::cout << line << "\n";
 }
 
 int main() {
-  runTest("Recursion: Factorial", "fun fact(n) { if (n <= 1) return 1; return "
-                                  "n * fact(n - 1); } print fact(5);");
-
-  runTest(
-      "Function local scope",
-      "var x = 100; fun add(x, d) { return x + d; } print add(5, 7); print x;");
-
-  runTest("Return outside function", "return 1;");
-
-  runTest("Unknown function", "print missing(1);");
-
+  runOptimizationDemo();
   return 0;
 }
