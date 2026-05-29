@@ -1,37 +1,42 @@
 #include "lexer.h"
 #include "parser.h"
+#include "semantic_analyzer.h"
 #include <iostream>
-#include <string>
+#include <vector>
 
-int main() {
-  // Сложный пример кода, покрывающий новые возможности
-  std::string code = "var x = 10; "
-                     "if (x > 5) { "
-                     "  print x + 1; "
-                     "} else { "
-                     "  x = 0; "
-                     "} "
-                     "while (x < 15) { "
-                     "  x = x + 1; "
-                     "  print x; "
-                     "}";
-
+void runTest(const std::string &name, const std::string &source) {
+  std::cout << "TEST: " << name << "\nSource: " << source << "\n";
   try {
-    Lexer lexer(code);
-    auto tokens = lexer.tokenize();
-
-    Parser parser(tokens);
+    Lexer lexer(source);
+    Parser parser(lexer.tokenize());
     auto ast = parser.parse();
 
-    std::cout << "AST Structure:\n";
-    for (const auto &stmt : ast) {
-      stmt->print(0);
-    }
+    SemanticAnalyzer analyzer;
+    auto [errors, warnings] = analyzer.analyze(ast);
+
+    std::cout << "Errors:\n";
+    if (errors.empty())
+      std::cout << "  none\n";
+    for (const auto &err : errors)
+      std::cout << "  " << err << "\n";
+
+    std::cout << "Warnings:\n";
+    if (warnings.empty())
+      std::cout << "  none\n";
+    for (const auto &warn : warnings)
+      std::cout << "  " << warn << "\n";
 
   } catch (const std::exception &e) {
-    std::cerr << "Error: " << e.what() << std::endl;
-    return 1;
+    std::cout << "Runtime Error: " << e.what() << "\n";
   }
+  std::cout << "-----------------------------------\n";
+}
 
+int main() {
+  runTest("Duplicate declaration", "var x = 1; var x = 2;");
+  runTest("Undeclared variable", "x = 5;");
+  runTest("Uninitialized variable", "var x; print x;");
+  runTest("Unused variable", "var x = 10;");
+  runTest("Scoping test", "{ var y = 5; } print y;");
   return 0;
 }
