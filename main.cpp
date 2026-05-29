@@ -1,69 +1,51 @@
+#include "interpreter.h"
 #include "lexer.h"
 #include "parser.h"
 #include "semantic_analyzer.h"
 #include <iostream>
-#include <string>
-#include <vector>
 
-// Вспомогательная функция для запуска тестов, аналогичная той, что в
-// Python-коммите
-void runTest(const std::string &name, const std::string &source) {
-  std::cout << "==============================================================="
-               "=================\n";
-  std::cout << "Case: " << name << "\n";
-  std::cout << "Source:\n" << source << (source.back() == '\n' ? "" : "\n");
-
+void runInterpreterTest(const std::string &name, const std::string &source) {
+  std::cout << "=== Test: " << name << " ===\n";
   try {
-    // 1. Лексический анализ
     Lexer lexer(source);
-    std::vector<Token> tokens = lexer.tokenize();
+    Parser parser(lexer.tokenize());
+    auto ast = parser.parse();
 
-    // 2. Синтаксический анализ
-    Parser parser(tokens);
-    std::vector<std::unique_ptr<Stmt>> ast = parser.parse();
+    SemanticAnalyzer semantic;
+    auto [errors, warnings] = semantic.analyze(ast);
+    if (!errors.empty()) {
+      for (auto &e : errors)
+        std::cerr << e << "\n";
+      return;
+    }
 
-    // 3. Семантический анализ
-    SemanticAnalyzer analyzer;
-    auto [errors, warnings] = analyzer.analyze(ast);
+    Interpreter interpreter;
+    auto output = interpreter.interpret(ast);
 
-    std::cout << "Tokens: " << tokens.size() << "\n";
-    std::cout << "AST: " << ast.size() << "\n";
-
-    std::cout << "Errors:\n";
-    if (errors.empty())
-      std::cout << "  none\n";
-    for (const auto &err : errors)
-      std::cout << "  " << err << "\n";
-
-    std::cout << "Warnings:\n";
-    if (warnings.empty())
-      std::cout << "  none\n";
-    for (const auto &warn : warnings)
-      std::cout << "  " << warn << "\n";
-
+    std::cout << "Output:\n";
+    for (const auto &line : output)
+      std::cout << "  " << line << "\n";
   } catch (const std::exception &e) {
-    // Ловим ошибки лексера (например, на Float) или парсера
-    std::cout << "Runtime error:\n  " << e.what() << "\n";
+    std::cerr << "Runtime Error: " << e.what() << "\n";
   }
+  std::cout << "\n";
 }
 
 int main() {
-  // Тесты из коммита lab4demo
-  runTest("number inference", "var x = 1;\nprint x;\n");
+  runInterpreterTest(
+      "Math and Variables",
+      "var a = 10; var b = 4; var res = (a + b) * 2 - a / 2; print res;");
 
-  runTest("string concatenation", "var s = \"a\" + \"b\";\nprint s;\n");
+  runInterpreterTest("Shadowing",
+                     "var x = 10; { var x = 3; print x + 1; } print x;");
 
-  runTest("boolean condition", "var flag = true;\nif (flag) print 1;\n");
+  runInterpreterTest("While loop",
+                     "var total = 0; var i = 1; while (i <= 5) { total = total "
+                     "+ i; i = i + 1; } print total;");
 
-  runTest("assignment type mismatch", "var x = 1;\nx = \"test\";\n");
-
-  runTest("string plus number is forbidden", "print \"a\" + 1;\n");
-
-  runTest("numeric condition is forbidden", "if (1) print 1;\n");
-
-  runTest("boolean operators", "var flag = true && false;\nprint flag;\n");
-
-  runTest("float literals are rejected", "var x = 3.1;");
+  runInterpreterTest(
+      "Conditions & Strings",
+      "var t = 15; if (t == 15) print \"ok\"; else print \"bad\";");
 
   return 0;
 }
